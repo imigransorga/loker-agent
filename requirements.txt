@@ -1,0 +1,7 @@
+anthropic>=2.9
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+python-dotenv
+certifi

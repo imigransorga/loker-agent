@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Scout · Kantor AI Loker{% endblock %}
+{% block content %}
+<h1>🔎 Scout — Pencari Loker</h1>
+<p class="muted">Isi payload tugas, lalu klik <b>Mulai cari</b>. Scout mengambil loker dari API publik + web search Claude (portal Indonesia), membuang duplikat & posisi senior, lalu menilai kecocokannya.</p>
+
+<div class="grid g2">
+<form class="card" id="scoutForm">
+  <h2>Payload tugas</h2>
+  <label>Posisi (pisahkan koma)</label>
+  <textarea name="roles">{{ default_roles }}</textarea>
+  <div class="row">
+    <div><label>Level</label><input name="levels" value="{{ default_levels }}"></div>
+    <div><label>Lokasi</label><input name="locations" value="{{ default_locations }}"></div>
+  </div>
+  <label>Sumber</label>
+  <div class="checks">
+    <label><input type="checkbox" name="sources" value="web_id" checked> Portal Indonesia (Claude web search)</label>
+    <label><input type="checkbox" name="sources" value="remotive" checked> Remotive</label>
+    <label><input type="checkbox" name="sources" value="remoteok" checked> RemoteOK</label>
+    <label><input type="checkbox" name="sources" value="arbeitnow"> Arbeitnow</label>
+  </div>
+  <div class="row">
+    <div><label>Maks loker dari web search</label><input type="number" name="web_limit" value="15" min="0" max="30"></div>
+    <div><label>Maks loker dinilai AI</label><input type="number" name="ai_score_limit" value="40" min="0" max="150"></div>
+  </div>
+  <div class="checks"><label><input type="checkbox" name="news" value="true" checked> Sekalian cari berita pasar kerja IT</label></div>
+  <div class="mt"><button id="runBtn">▶ Mulai cari</button></div>
+  {% if not claude %}<p class="small muted">Tanpa API key Claude: hanya sumber API publik + skor sederhana.</p>{% endif %}
+</form>
+
+<div class="card">
+  <h2>Laporan kerja</h2>
+  <div id="runBox" class="muted small">Belum ada tugas yang berjalan.</div>
+  <pre class="log" id="runLog" hidden></pre>
+  <h2 class="mt">Riwayat</h2>
+  <table>
+    <tr><th>#</th><th>Mulai</th><th>Status</th><th>Hasil</th></tr>
+    {% for r in runs %}
+    {% set st = r.stats | fromjson if r.stats else {} %}
+    <tr>
+      <td>{{ r.id }}</td><td class="small">{{ r.started_at.replace('T',' ') }}</td>
+      <td><span class="pill {{ 'ok' if r.status=='done' else ('bad' if r.status=='error' else 'warn') }}">{{ r.status }}</span></td>
+      <td class="small">{{ st.get('new', 0) }} baru / {{ st.get('fetched', 0) }} dicek</td>
+    </tr>
+    {% else %}<tr><td colspan="4" class="muted">Belum ada.</td></tr>{% endfor %}
+  </table>
+</div>
+</div>
+
+{% if news %}
+<div class="card mt">
+  <h2>📰 Berita pasar kerja IT</h2>
+  <ul class="news">
+  {% for n in news %}
+    <li><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a><br><span class="small muted">{{ n.summary }}</span></li>
+  {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card mt">
+  <h2>Daftar loker ({{ jobs|length }})</h2>
+  <form class="row" method="get">
+    <div><label>Cari</label><input name="q" value="{{ f.q }}" placeholder="judul / perusahaan / lokasi"></div>
+    <div><label>Status</label><select name="status"><option value="">Semua</option>{% for s in statuses %}<option {{ 'selected' if f.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+    <div><label>Kategori</label><select name="category"><option value="">Semua</option>{% for c in categories %}<option {{ 'selected' if f.category==c }}>{{ c }}</option>{% endfor %}</select></div>
+    <div><label>Sumber</label><select name="source"><option value="">Semua</option>{% for s in sources_list %}<option {{ 'selected' if f.source==s }}>{{ s }}</option>{% endfor %}</select></div>
+    <div><label>Skor min</label><input type="number" name="min_rel" value="{{ f.min_rel }}" min="0" max="100"></div>
+    <div style="flex:0"><button>Filter</button></div>
+  </form>
+  <div class="tbl mt">
+  <table>
+    <tr><th>Skor</th><th>Posisi</th><th>Lokasi</th><th>Kategori / Level</th><th>Sumber</th><th>Status</th></tr>
+    {% for j in jobs %}
+    {% set rel = j.relevance if j.relevance is not none else -1 %}
+    <tr>
+      <td><span class="score {{ 's-hi' if rel>=70 else ('s-mid' if rel>=45 else 's-lo') }}">{{ j.relevance if j.relevance is not none else '–' }}</span></td>
+      <td><a href="/jobs/{{ j.id }}"><b>{{ j.title }}</b></a><br><span class="small muted">{{ j.company or '-' }}</span>
+        {% if j.reason %}<br><span class="small">{{ j.reason }}</span>{% endif %}</td>
+      <td class="small">{{ j.location }}</td>
+      <td class="small">{{ j.role_category or '-' }}<br><span class="muted">{{ j.level or '' }}</span></td>
+      <td class="small">{{ j.source }}<br><span class="muted">{{ j.posted_at or '' }}</span></td>
+      <td>
+        <form method="post" action="/jobs/{{ j.id }}/status">
+          <select name="status" onchange="this.form.submit()">{% for s in statuses %}<option {{ 'selected' if j.status==s }}>{{ s }}</option>{% endfor %}</select>
+        </form>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="muted">Belum ada loker. Jalankan Scout dulu.</td></tr>{% endfor %}
+  </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const form = document.getElementById("scoutForm"), btn = document.getElementById("runBtn");
+const box = document.getElementById("runBox"), logEl = document.getElementById("runLog");
+
+async function poll(id){
+  const r = await (await fetch(`/api/runs/${id}`)).json();
+  logEl.hidden = false; logEl.textContent = r.log; logEl.scrollTop = logEl.scrollHeight;
+  if (r.status === "running"){ box.textContent = `Tugas #${id} sedang dikerjakan…`; setTimeout(() => poll(id), 2500); }
+  else { box.textContent = `Tugas #${id} ${r.status === "done" ? "selesai ✅" : "gagal ❌"} — memuat ulang…`; setTimeout(() => location.reload(), 1500); }
+}
+
+form.addEventListener("submit", async e => {
+  e.preventDefault(); btn.disabled = true;
+  const res = await fetch("/api/scout/run", {method: "POST", body: new FormData(form)});
+  const data = await res.json();
+  if (!res.ok){ box.textContent = data.detail || "Gagal memulai"; btn.disabled = false; return; }
+  poll(data.run_id);
+});
+
+{% for r in runs if r.status == "running" %}{% if loop.first %}poll({{ r.id }}); btn.disabled = true;{% endif %}{% endfor %}
+</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Analyst · Kantor AI Loker{% endblock %}
+{% block content %}
+<h1>📊 Analyst — Laporan</h1>
+<p class="muted">Berapa loker yang dikumpulkan, dari mana, skill apa yang paling dicari, dan bagaimana progres lamaranmu.</p>
+
+<div class="grid g4">
+  <div class="card kpi"><div class="v">{{ s.total }}</div><div class="l">Total loker</div></div>
+  <div class="card kpi"><div class="v">{{ s.week }}</div><div class="l">Masuk 7 hari terakhir</div></div>
+  <div class="card kpi"><div class="v">{{ s.high }}</div><div class="l">Sangat cocok (≥ 70)</div></div>
+  <div class="card kpi"><div class="v">{{ s.applied }}</div><div class="l">Sudah dilamar</div></div>
+  <div class="card kpi"><div class="v">{{ s.response_rate }}%</div><div class="l">Lamaran → interview</div></div>
+</div>
+
+<div class="grid g2 mt">
+  <div class="card"><h2>Loker masuk per hari (30 hari)</h2><canvas id="cDay" height="200"></canvas></div>
+  <div class="card"><h2>Funnel lamaran</h2><canvas id="cFunnel" height="200"></canvas></div>
+  <div class="card"><h2>Kategori posisi</h2><canvas id="cCat" height="220"></canvas></div>
+  <div class="card"><h2>Skill paling dicari (loker skor ≥ 50)</h2><canvas id="cSkill" height="220"></canvas></div>
+  <div class="card"><h2>Sumber</h2>
+    <table>{% for r in s.by_source %}<tr><td>{{ r.source }}</td><td style="text-align:right">{{ r.n }}</td></tr>{% else %}<tr><td class="muted">Belum ada data</td></tr>{% endfor %}</table>
+  </div>
+  <div class="card"><h2>Perusahaan paling aktif</h2>
+    <table>{% for r in s.top_companies %}<tr><td>{{ r.company }}</td><td style="text-align:right">{{ r.n }}</td></tr>{% else %}<tr><td class="muted">Belum ada data</td></tr>{% endfor %}</table>
+  </div>
+</div>
+
+<div class="card mt">
+  <h2>💡 Insight & saran dari Analyst</h2>
+  <button id="insBtn" {{ 'disabled' if not claude }}>Minta analisis</button>
+  {% if not claude %}<span class="small muted"> butuh API key Claude</span>{% endif %}
+  <div id="insBox" class="md mt"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const S = {{ s | tojson }};
+const css = getComputedStyle(document.documentElement);
+const acc = css.getPropertyValue("--acc").trim(), muted = css.getPropertyValue("--muted").trim(), line = css.getPropertyValue("--line").trim();
+Chart.defaults.color = muted; Chart.defaults.borderColor = line;
+const opt = {plugins:{legend:{display:false}}, maintainAspectRatio:false};
+const mk = (id, type, labels, data, extra={}) => new Chart(document.getElementById(id), {type, data:{labels, datasets:[{data, backgroundColor:acc, borderColor:acc, tension:.3}]}, options:{...opt, ...extra}});
+
+mk("cDay", "line", S.per_day.map(r => r.d), S.per_day.map(r => r.n));
+const funnel = ["baru","disimpan","dilamar","interview","diterima","ditolak"];
+mk("cFunnel", "bar", funnel, funnel.map(k => S.by_status[k] || 0));
+mk("cCat", "bar", S.by_category.map(r => r.c), S.by_category.map(r => r.n), {indexAxis:"y"});
+mk("cSkill", "bar", S.top_skills.map(r => r[0]), S.top_skills.map(r => r[1]), {indexAxis:"y"});
+
+document.getElementById("insBtn").onclick = async (e) => {
+  const b = e.target, box = document.getElementById("insBox");
+  b.disabled = true; box.innerHTML = "<p class='muted'>Analyst sedang menganalisis…</p>";
+  const r = await fetch("/api/analyst/insight", {method:"POST"}); const d = await r.json(); b.disabled = false;
+  if (!r.ok){ box.textContent = d.error; return; }
+  md(box, d.content);
+};
+</script>
+{% endblock %}

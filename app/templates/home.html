@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Selamat datang di kantor 👋</h1>
+<p class="muted">5 karyawan AI kamu. Klik salah satu untuk memberi tugas.</p>
+
+<div class="grid g5">
+{% for a in agents %}
+  <a class="card agent" href="/agent/{{ a.key }}">
+    <span class="ic">{{ a.icon }}</span>
+    <b>{{ a.name }}</b>
+    <span class="muted small">{{ a.role }}</span>
+    <span class="small">{{ a.desc }}</span>
+    <span>{% if a.ready %}<span class="pill ok">Siap kerja</span>{% else %}<span class="pill">Segera</span>{% endif %}</span>
+  </a>
+{% endfor %}
+</div>
+
+<h2 class="mt">Ringkasan</h2>
+<div class="grid g4">
+  <div class="card kpi"><div class="v">{{ s.total }}</div><div class="l">Total loker tersimpan</div></div>
+  <div class="card kpi"><div class="v">{{ s.today }}</div><div class="l">Loker baru hari ini</div></div>
+  <div class="card kpi"><div class="v">{{ s.high }}</div><div class="l">Sangat cocok (skor ≥ 70)</div></div>
+  <div class="card kpi"><div class="v">{{ s.applied }}</div><div class="l">Sudah dilamar</div></div>
+  <div class="card kpi"><div class="v">{{ s.interview }}</div><div class="l">Interview / diterima</div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} · Kantor AI Loker{% endblock %}
+{% block content %}
+<p><a href="/scout">← Kembali ke daftar</a></p>
+<div class="grid g2">
+<div class="card">
+  <h1>{{ job.title }}</h1>
+  <p class="muted">{{ job.company or '-' }} · {{ job.location }} · {{ job.source }}{% if job.posted_at %} · diposting {{ job.posted_at }}{% endif %}</p>
+  <p>
+    {% if job.relevance is not none %}<span class="pill {{ 'ok' if job.relevance>=70 else ('warn' if job.relevance>=45 else 'bad') }}">Skor {{ job.relevance }}</span>{% endif %}
+    <span class="pill">{{ job.role_category or '-' }}</span> <span class="pill">{{ job.level or 'level ?' }}</span>
+  </p>
+  {% if job.reason %}<p>{{ job.reason }}</p>{% endif %}
+  {% if job.skills %}<p class="tags">{% for s in job.skills %}<span>{{ s }}</span>{% endfor %}</p>{% endif %}
+  <p><a class="btn" href="{{ job.url }}" target="_blank" rel="noopener">Buka lowongan ↗</a></p>
+  <form method="post" action="/jobs/{{ job.id }}/status" class="mt">
+    <label>Status lamaran</label>
+    <select name="status">{% for s in statuses %}<option {{ 'selected' if job.status==s }}>{{ s }}</option>{% endfor %}</select>
+    <label>Catatan</label><textarea name="notes">{{ job.notes or '' }}</textarea>
+    <div class="mt"><button>Simpan</button></div>
+  </form>
+</div>
+<div class="card">
+  <h2>Riset perusahaan</h2>
+  <p class="small muted">Scout mencari profil, berita terbaru, review, red flag, dan tips interview.</p>
+  <button id="resBtn" class="ghost">{{ 'Riset ulang' if research else 'Riset perusahaan ini' }}</button>
+  <div id="resBox" class="md mt">{% if research %}<div data-md>{{ research.content }}</div><p class="small muted">Diriset {{ research.created_at.replace('T',' ') }}</p>{% endif %}</div>
+</div>
+</div>
+<div class="card mt">
+  <h2>Deskripsi</h2>
+  <div style="white-space:pre-wrap" class="small">{{ job.description or '-' }}</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById("resBtn").onclick = async (e) => {
+  const b = e.target, box = document.getElementById("resBox");
+  b.disabled = true; box.innerHTML = "<p class='muted'>Sedang riset (±1 menit)…</p>";
+  const r = await fetch("/api/jobs/{{ job.id }}/research", {method: "POST"});
+  const d = await r.json(); b.disabled = false;
+  if (!r.ok){ box.innerHTML = ""; box.textContent = d.error; return; }
+  md(box, d.content);
+};
+</script>
+{% endblock %}

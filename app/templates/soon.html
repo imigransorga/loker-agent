@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>{{ a.icon }} {{ a.name }} — {{ a.role }}</h1>
+  <p>{{ a.desc }}</p>
+  <p class="muted">Agent ini sedang dibangun (fase berikutnya). Sementara itu pakai <a href="/scout">Scout</a> dan <a href="/analyst">Analyst</a>.</p>
+</div>
+{% endblock %}
