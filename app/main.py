@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import db, llm
-from .agents import analyst, scout
+from .agents import analyst, coach, info, scout
 from .config import BASE_DIR, CLAUDE_MODEL, DEFAULT_LEVELS, DEFAULT_LOCATIONS, ROLE_CATEGORIES, claude_enabled
 
 app = FastAPI(title="Kantor AI Loker")
@@ -17,17 +17,33 @@ templates = Jinja2Templates(directory=BASE_DIR / "app" / "templates")
 templates.env.filters["fromjson"] = json.loads
 
 AGENTS = [
-    {"key": "scout", "name": "Scout", "role": "Pencari Loker", "icon": "🔎", "ready": True,
+    {"key": "scout", "name": "Kia", "title": "Scout", "role": "Scout · Pencari Loker", "icon": "🔎", "ready": True,
      "desc": "Kumpulkan loker IT terbaru (QA, FE, BE, web dev, SE) untuk fresh grad & junior, nilai kecocokannya, dan cari berita pasar kerja."},
-    {"key": "applier", "name": "Applier", "role": "Pencocok & Pelamar", "icon": "📨", "ready": False,
+    {"key": "applier", "name": "Nuri", "title": "Applier", "role": "Applier · Pencocok & Pelamar", "icon": "📨", "ready": False,
      "desc": "Upload 1 CV → dicocokkan ke tiap loker, dibuatkan CV & cover letter khusus, lalu dibantu melamar (semi-otomatis)."},
-    {"key": "builder", "name": "Builder", "role": "Pembuat CV & Portofolio", "icon": "🧾", "ready": False,
+    {"key": "builder", "name": "Dian", "title": "Builder", "role": "Builder · CV & Portofolio", "icon": "🧾", "ready": False,
      "desc": "Satu prompt → CV ATS-friendly, halaman portofolio, compro, ringkasan LinkedIn."},
-    {"key": "analyst", "name": "Analyst", "role": "Analis Data", "icon": "📊", "ready": True,
+    {"key": "info", "name": "Dimas", "title": "Pusat Info", "role": "Pusat Info · Brief Harian", "icon": "📬", "ready": True,
+     "desc": "Brief harian: loker baru, lamaran yang perlu di-follow-up, jadwal interview, dan berita terbaru."},
+    {"key": "analyst", "name": "Sabrina", "title": "Analyst", "role": "Analyst · Analis Data", "icon": "📊", "ready": True,
      "desc": "Statistik loker yang di-scrape, funnel lamaran, skill paling dicari, dan saran mingguan."},
-    {"key": "manager", "name": "Manager", "role": "Koordinator", "icon": "🧑‍💼", "ready": False,
-     "desc": "Beri 1 perintah, Manager membagi tugas ke agent lain."},
+    {"key": "coach", "name": "Kayla", "title": "Coach", "role": "Coach · Pelatih Interview", "icon": "🎤", "ready": True,
+     "desc": "Pilih satu loker → disiapkan pertanyaan interview teknis & HR beserta kerangka jawaban, pertanyaan balik, dan checklist."},
+    {"key": "manager", "name": "Putri", "title": "Manager", "role": "Manager · Koordinator", "icon": "🧑‍💼", "ready": False,
+     "desc": "Beri 1 perintah, Putri membagi tugas ke karyawan lain."},
 ]
+
+
+# Tampilan karakter 3D tiap agent
+LOOKS_3D = {
+    "scout":   {"shirt": "#2f6fed", "hair": "#2b1d16", "skin": "#f1c7a4", "hair_style": "short", "extra": "headset"},
+    "applier": {"shirt": "#e0773b", "hair": "#3b2a4a", "skin": "#d9a27c", "hair_style": "hijab", "extra": ""},
+    "builder": {"shirt": "#8a5cf6", "hair": "#5a3825", "skin": "#f3d1b5", "hair_style": "long", "extra": ""},
+    "analyst": {"shirt": "#1f9d74", "hair": "#1d1d1d", "skin": "#c98d62", "hair_style": "curly", "extra": "glasses"},
+    "manager": {"shirt": "#3c4658", "hair": "#444444", "skin": "#e8b896", "hair_style": "cap", "extra": ""},
+    "coach":   {"shirt": "#e85d9a", "hair": "#3a2418", "skin": "#e9bf99", "hair_style": "bun", "extra": "glasses"},
+    "info":    {"shirt": "#f2b134", "hair": "#6b3e26", "skin": "#d8a07a", "hair_style": "long", "extra": "headset"},
+}
 
 
 @app.on_event("startup")
@@ -36,13 +52,28 @@ def _startup():
 
 
 def _ctx(request: Request, **kw):
-    return {"request": request, "claude": claude_enabled(), "model": CLAUDE_MODEL, **kw}
+    return {"request": request, "claude": claude_enabled(), "model": CLAUDE_MODEL,
+            "nav_agents": AGENTS, "nav_looks": LOOKS_3D, **kw}
 
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     s = analyst.stats()
-    return templates.TemplateResponse(request, "home.html", _ctx(request, agents=AGENTS, s=s))
+    runs = db.list_runs("scout", 1)
+    last_run = runs[0] if runs else None
+    if last_run:
+        last_run["stats"] = json.loads(last_run["stats"] or "{}")
+    scout_running = bool(last_run and last_run["status"] == "running")
+    agents3d = [{
+        "key": a["key"], "name": a["name"], "role": a["role"], "icon": a["icon"],
+        "state": "busy" if (a["key"] == "scout" and scout_running) else ("work" if a["ready"] else "off"),
+        "look": LOOKS_3D[a["key"]],
+    } for a in AGENTS]
+    board = {k: s[k] for k in ("total", "high", "applied", "interview")}
+    return templates.TemplateResponse(request, "home.html", _ctx(
+        request, agents=AGENTS, s=s, top_jobs=db.list_jobs(limit=6), last_run=last_run,
+        news=db.list_news(3), agents3d=agents3d, board=board,
+        brief=info.brief(), coach_jobs=coach.candidates()))
 
 
 # ---------------- Scout ----------------
@@ -132,11 +163,26 @@ def analyst_insight():
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
+# ---------- Kayla (coach) ----------
+@app.post("/api/coach/{job_id}")
+def coach_prepare(job_id: int):
+    try:
+        return {"content": coach.prepare(job_id)}
+    except (llm.ClaudeError, ValueError) as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.get("/api/coach/{job_id}")
+def coach_get(job_id: int):
+    p = db.get_prep(job_id)
+    return p or JSONResponse({"error": "belum ada"}, status_code=404)
+
+
 @app.get("/agent/{key}", response_class=HTMLResponse)
 def agent_soon(request: Request, key: str):
     a = next((a for a in AGENTS if a["key"] == key), None)
     if not a:
         raise HTTPException(404)
     if a["ready"]:
-        return RedirectResponse(f"/{key}")
+        return RedirectResponse(f"/{key}" if key in ("scout", "analyst") else f"/?agent={key}")
     return templates.TemplateResponse(request, "soon.html", _ctx(request, a=a))

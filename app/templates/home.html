@@ -1,26 +1,294 @@
 {% extends "base.html" %}
+
+{#- Karakter karyawan: orang di balik meja, mengetik di laptop -#}
+{% macro worker(a, shirt, hair, skin, hairstyle, extra="") %}
+<svg viewBox="0 0 200 170" class="worker-svg" aria-hidden="true">
+  <ellipse cx="100" cy="160" rx="80" ry="7" class="floor-shadow"/>
+  <!-- kursi -->
+  <rect x="68" y="58" width="64" height="62" rx="12" class="chair"/>
+  <!-- badan -->
+  <g class="w-body">
+    <path d="M70 120 Q70 82 100 80 Q130 82 130 120 Z" fill="{{ shirt }}"/>
+    <path d="M92 81 L100 92 L108 81" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"/>
+    <!-- kepala -->
+    <g class="w-head">
+      <rect x="94" y="68" width="12" height="12" fill="{{ skin }}"/>
+      <circle cx="100" cy="54" r="18" fill="{{ skin }}"/>
+      {% if hairstyle == "short" %}
+        <path d="M82 52 Q82 33 100 33 Q119 33 118 52 Q113 41 100 42 Q88 42 82 52Z" fill="{{ hair }}"/>
+      {% elif hairstyle == "long" %}
+        <path d="M81 56 Q79 33 100 32 Q122 33 119 56 L121 78 Q115 70 116 50 Q108 42 92 43 Q85 48 84 62 L80 78Z" fill="{{ hair }}"/>
+      {% elif hairstyle == "hijab" %}
+        <path d="M78 58 Q78 31 100 31 Q122 31 122 58 L126 86 Q100 96 74 86Z" fill="{{ hair }}"/>
+        <ellipse cx="100" cy="56" rx="14" ry="16" fill="{{ skin }}"/>
+      {% elif hairstyle == "bun" %}
+        <circle cx="100" cy="28" r="9" fill="{{ hair }}"/>
+        <path d="M82 52 Q82 33 100 33 Q119 33 118 52 Q113 41 100 42 Q88 42 82 52Z" fill="{{ hair }}"/>
+      {% elif hairstyle == "curly" %}
+        <g fill="{{ hair }}"><circle cx="86" cy="42" r="8"/><circle cx="96" cy="36" r="9"/><circle cx="107" cy="36" r="9"/><circle cx="116" cy="44" r="8"/><circle cx="82" cy="51" r="5"/><circle cx="119" cy="52" r="5"/></g>
+      {% else %}
+        <path d="M82 50 Q84 34 100 34 Q117 34 118 50 L118 44 Q100 30 82 44Z" fill="{{ hair }}"/>
+        <rect x="80" y="40" width="40" height="6" rx="3" fill="{{ hair }}"/>
+      {% endif %}
+      <g class="w-eyes"><circle cx="93" cy="56" r="2.2" fill="#222"/><circle cx="107" cy="56" r="2.2" fill="#222"/></g>
+      {% if extra == "glasses" %}
+        <g fill="none" stroke="#333" stroke-width="1.6"><circle cx="93" cy="56" r="5.5"/><circle cx="107" cy="56" r="5.5"/><path d="M98.5 56 L101.5 56"/></g>
+      {% endif %}
+      <path d="M95 64 Q100 67 105 64" fill="none" stroke="#7a3b2e" stroke-width="1.6" stroke-linecap="round" class="w-mouth"/>
+      {% if extra == "headset" %}
+        <path d="M81 54 Q81 30 100 30 Q119 30 119 54" fill="none" stroke="#333" stroke-width="3"/>
+        <rect x="77" y="50" width="7" height="12" rx="3" fill="#333"/><path d="M80 62 Q84 70 93 66" fill="none" stroke="#333" stroke-width="2"/>
+      {% endif %}
+    </g>
+    <!-- tangan -->
+    <path d="M74 92 Q66 104 76 112" fill="none" stroke="{{ shirt }}" stroke-width="9" stroke-linecap="round"/>
+    <path d="M126 92 Q134 104 124 112" fill="none" stroke="{{ shirt }}" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="78" cy="112" r="5" fill="{{ skin }}" class="w-hand-l"/>
+    <circle cx="122" cy="112" r="5" fill="{{ skin }}" class="w-hand-r"/>
+  </g>
+  <!-- meja -->
+  <rect x="14" y="116" width="172" height="10" rx="3" class="desk-top"/>
+  <rect x="24" y="126" width="8" height="32" class="desk-leg"/><rect x="168" y="126" width="8" height="32" class="desk-leg"/>
+  <!-- laptop (bagian belakang menghadap kita) -->
+  <g class="w-laptop">
+    <ellipse cx="100" cy="116" rx="40" ry="4" class="laptop-glow"/>
+    <path d="M76 84 L124 84 L127 116 L73 116 Z" class="laptop-back"/>
+    <circle cx="100" cy="99" r="5" class="laptop-logo"/>
+  </g>
+  <!-- cangkir kopi -->
+  <g class="w-coffee"><rect x="146" y="102" width="12" height="14" rx="2" fill="#f4f1ea"/><path d="M158 106 q5 0 5 4 q0 4 -5 4" fill="none" stroke="#f4f1ea" stroke-width="2"/>
+    <path class="steam" d="M150 98 q-3 -5 0 -9 q3 -4 0 -9" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round"/></g>
+  <!-- tanaman -->
+  <g><rect x="30" y="102" width="14" height="14" rx="2" fill="#c96f4a"/><path d="M37 102 q-10 -14 -2 -20 M37 102 q2 -16 10 -18 M37 102 q-2 -10 -10 -10" stroke="#3f9a5a" stroke-width="3" fill="none" stroke-linecap="round"/></g>
+</svg>
+{% endmacro %}
+
+{% set looks = {
+  "scout":   ["#2f6fed", "#2b1d16", "#f1c7a4", "short", "headset"],
+  "applier": ["#e0773b", "#1b1b1b", "#d9a27c", "hijab", ""],
+  "builder": ["#8a5cf6", "#5a3825", "#f3d1b5", "long", ""],
+  "analyst": ["#1f9d74", "#1d1d1d", "#c98d62", "curly", "glasses"],
+  "manager": ["#3c4658", "#444", "#e8b896", "cap", ""],
+  "coach":   ["#e85d9a", "#3a2418", "#e9bf99", "bun", "glasses"],
+  "info":    ["#f2b134", "#6b3e26", "#d8a07a", "long", "headset"],
+} %}
+{% set scout_running = last_run and last_run.status == "running" %}
+
 {% block content %}
-<h1>Selamat datang di kantor 👋</h1>
-<p class="muted">5 karyawan AI kamu. Klik salah satu untuk memberi tugas.</p>
+<div class="office">
+  <section class="office-floor">
+    <div class="office-head">
+      <div>
+        <h1>Selamat datang di <span class="grad-text">Family</span> 🏠</h1>
+        <p class="muted small">Kantor AI Loker — klik salah satu karyawan untuk melihat hasil kerjanya.</p>
+        <div class="hero-badges">
+          <span class="live">{{ agents | selectattr('ready') | list | length }} karyawan aktif</span>
+          <span>{{ s.total }} loker terkumpul</span>
+          <span>{{ s.applied }} dilamar</span>
+        </div>
+      </div>
+      <div id="office3dHelp" class="small muted" hidden>
+        🖱️ drag = putar · scroll = zoom
+        <button id="resetView" class="ghost small-btn">⟲ Lihat semua</button>
+      </div>
+    </div>
+    <div id="office3d" hidden></div>
+    <div class="desks" id="office2d">
+      {% for a in agents %}
+      {% set lk = looks[a.key] %}
+      {% set state = ("busy" if (a.key == "scout" and scout_running) else ("work" if a.ready else "off")) %}
+      <button class="desk {{ state }}" data-agent="{{ a.key }}" aria-label="{{ a.name }} — {{ a.role }}">
+        <span class="bubble">
+          {% if state == "busy" %}Lagi nyari loker… 🔥
+          {% elif state == "work" %}{{ {"scout": "Siap cari loker! 🔎", "analyst": "Laporan siap 📈", "coach": "Yuk latihan interview 🎤", "info": "Ada kabar baru 📬"}[a.key] }}
+          {% else %}Belum masuk kerja 💤{% endif %}
+        </span>
+        {{ worker(a, *lk) }}
+        <span class="nameplate"><b>{{ a.icon }} {{ a.name }}</b><small>{{ a.role }}</small></span>
+      </button>
+      {% endfor %}
+    </div>
+  </section>
 
-<div class="grid g5">
-{% for a in agents %}
-  <a class="card agent" href="/agent/{{ a.key }}">
-    <span class="ic">{{ a.icon }}</span>
-    <b>{{ a.name }}</b>
-    <span class="muted small">{{ a.role }}</span>
-    <span class="small">{{ a.desc }}</span>
-    <span>{% if a.ready %}<span class="pill ok">Siap kerja</span>{% else %}<span class="pill">Segera</span>{% endif %}</span>
-  </a>
-{% endfor %}
-</div>
+  <aside class="panel card" id="panel">
+    {# ---------- Panel Scout ---------- #}
+    <div class="pane" data-pane="scout">
+      <h2>🔎 Kia <span class="muted small">· Scout, Pencari Loker</span></h2>
+      {% if last_run %}
+        <p class="small muted">Tugas terakhir #{{ last_run.id }} · {{ last_run.started_at.replace('T',' ') }} ·
+          <span class="pill {{ 'ok' if last_run.status=='done' else ('bad' if last_run.status=='error' else 'warn') }}">{{ last_run.status }}</span></p>
+        <div class="grid g3 mini-kpi">
+          <div><b>{{ last_run.stats.get('fetched', 0) }}</b><span>dicek</span></div>
+          <div><b>{{ last_run.stats.get('relevant', 0) }}</b><span>relevan</span></div>
+          <div><b>{{ last_run.stats.get('new', 0) }}</b><span>baru</span></div>
+        </div>
+      {% else %}<p class="muted">Scout belum pernah ditugaskan.</p>{% endif %}
 
-<h2 class="mt">Ringkasan</h2>
-<div class="grid g4">
-  <div class="card kpi"><div class="v">{{ s.total }}</div><div class="l">Total loker tersimpan</div></div>
-  <div class="card kpi"><div class="v">{{ s.today }}</div><div class="l">Loker baru hari ini</div></div>
-  <div class="card kpi"><div class="v">{{ s.high }}</div><div class="l">Sangat cocok (skor ≥ 70)</div></div>
-  <div class="card kpi"><div class="v">{{ s.applied }}</div><div class="l">Sudah dilamar</div></div>
-  <div class="card kpi"><div class="v">{{ s.interview }}</div><div class="l">Interview / diterima</div></div>
+      <button id="quickRun" class="mt" {{ 'disabled' if scout_running }}>▶ Suruh cari loker sekarang</button>
+      <a class="btn ghost" href="/scout">Atur payload</a>
+      <pre class="log" id="quickLog" hidden></pre>
+
+      <h3>Loker paling cocok</h3>
+      <ul class="joblist">
+        {% for j in top_jobs %}
+        {% set rel = j.relevance if j.relevance is not none else -1 %}
+        <li><span class="score {{ 's-hi' if rel>=70 else ('s-mid' if rel>=45 else 's-lo') }}">{{ j.relevance if j.relevance is not none else '–' }}</span>
+          <div><a href="/jobs/{{ j.id }}">{{ j.title }}</a><br><span class="small muted">{{ j.company or '-' }} · {{ j.location }}</span></div></li>
+        {% else %}<li class="muted">Belum ada loker.</li>{% endfor %}
+      </ul>
+      {% if news %}
+      <h3>Berita terbaru</h3>
+      <ul class="news small">{% for n in news %}<li><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a></li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+
+    {# ---------- Panel Analyst ---------- #}
+    <div class="pane" data-pane="analyst" hidden>
+      <h2>📊 Sabrina <span class="muted small">· Analyst, Analis Data</span></h2>
+      <div class="grid g3 mini-kpi">
+        <div><b>{{ s.total }}</b><span>total loker</span></div>
+        <div><b>{{ s.today }}</b><span>baru hari ini</span></div>
+        <div><b>{{ s.high }}</b><span>sangat cocok</span></div>
+        <div><b>{{ s.applied }}</b><span>dilamar</span></div>
+        <div><b>{{ s.interview }}</b><span>interview</span></div>
+        <div><b>{{ s.response_rate }}%</b><span>respon</span></div>
+      </div>
+      <h3>Skill paling dicari</h3>
+      {% set maxn = (s.top_skills[0][1] if s.top_skills else 1) %}
+      {% for name, n in s.top_skills[:8] %}
+        <div class="bar"><span>{{ name }}</span><i style="width:{{ (n / maxn * 100)|round }}%"></i><em>{{ n }}</em></div>
+      {% else %}<p class="muted small">Belum ada data skill.</p>{% endfor %}
+      <h3>Sumber loker</h3>
+      {% for r in s.by_source[:6] %}<div class="row-kv"><span>{{ r.source }}</span><b>{{ r.n }}</b></div>{% endfor %}
+      <p class="mt"><a class="btn" href="/analyst">Buka laporan lengkap</a></p>
+    </div>
+
+    {# ---------- Panel Family (Pusat Info) ---------- #}
+    <div class="pane" data-pane="info" hidden>
+      <h2>📬 Dimas <span class="muted small">· Pusat Info, Brief Harian</span></h2>
+      <p>{{ brief.greet }}! Ini ringkasan hari ini:</p>
+      <ul class="tips">{% for t in brief.tips %}<li>{{ t }}</li>{% endfor %}</ul>
+
+      <h3>Loker baru 24 jam ({{ brief.new_count }})</h3>
+      <ul class="joblist">
+        {% for j in brief.new_jobs %}
+        <li><span class="score {{ 's-hi' if (j.relevance or 0)>=70 else ('s-mid' if (j.relevance or 0)>=45 else 's-lo') }}">{{ j.relevance if j.relevance is not none else '–' }}</span>
+          <div><a href="/jobs/{{ j.id }}">{{ j.title }}</a><br><span class="small muted">{{ j.company or '-' }}</span></div></li>
+        {% else %}<li class="muted small">Belum ada loker baru hari ini.</li>{% endfor %}
+      </ul>
+
+      <h3>Perlu follow-up</h3>
+      {% for f in brief.follow_up %}
+        <div class="row-kv"><a href="/jobs/{{ f.id }}">{{ f.title }} · {{ f.company or '-' }}</a><span class="pill warn">{{ f.days }} hari</span></div>
+      {% else %}<p class="muted small">Tidak ada lamaran yang menggantung.</p>{% endfor %}
+
+      <h3>Jadwal interview</h3>
+      {% for j in brief.interviews %}
+        <div class="row-kv"><a href="/jobs/{{ j.id }}">{{ j.title }} · {{ j.company or '-' }}</a><span class="small muted">{{ j.notes or '' }}</span></div>
+      {% else %}<p class="muted small">Belum ada interview. Semangat! 💪</p>{% endfor %}
+
+      {% if brief.news %}
+      <h3>Berita</h3>
+      <ul class="news small">{% for n in brief.news %}<li><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a></li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+
+    {# ---------- Panel Kayla (Coach) ---------- #}
+    <div class="pane" data-pane="coach" hidden>
+      <h2>🎤 Kayla <span class="muted small">· Coach, Pelatih Interview</span></h2>
+      <p class="small">Pilih loker yang mau dilatih. Kayla menyiapkan pertanyaan teknis &amp; HR, kerangka jawaban, perkenalan diri 60 detik, dan checklist H-1.</p>
+      {% if coach_jobs %}
+      <label>Loker</label>
+      <select id="coachJob">
+        {% for j in coach_jobs %}<option value="{{ j.id }}">[{{ j.status }}] {{ j.title }} — {{ j.company or '-' }}</option>{% endfor %}
+      </select>
+      <div class="mt"><button id="coachBtn" {{ 'disabled' if not claude }}>🎤 Siapkan latihan interview</button>
+        {% if not claude %}<span class="small muted"> butuh API key Claude</span>{% endif %}</div>
+      <div id="coachBox" class="md mt"></div>
+      {% else %}<p class="muted">Belum ada loker. Minta Kia cari loker dulu.</p>{% endif %}
+    </div>
+
+    {# ---------- Panel agent yang belum aktif ---------- #}
+    {% for a in agents if not a.ready %}
+    <div class="pane" data-pane="{{ a.key }}" hidden>
+      <h2>{{ a.icon }} {{ a.name }} <span class="muted small">· {{ a.role }}</span></h2>
+      <p>{{ a.desc }}</p>
+      <p class="pill">{{ "Fase 2" if a.key == "builder" else "Fase 3" }}</p>
+      <p class="muted small mt">{{ a.name }} belum masuk kerja — sedang disiapkan.</p>
+    </div>
+    {% endfor %}
+  </aside>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script id="agents-data" type="application/json">{{ agents3d | tojson }}</script>
+<script id="board-data" type="application/json">{{ board | tojson }}</script>
+<script type="importmap">
+{"imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script>
+const desks = document.querySelectorAll(".desk"), panes = document.querySelectorAll(".pane");
+function select(key, opts = {}){
+  desks.forEach(d => d.classList.toggle("selected", d.dataset.agent === key));
+  panes.forEach(p => p.hidden = p.dataset.pane !== key);
+  try { localStorage.setItem("agent", key); } catch(e) {}
+  window.currentAgent = key;
+  document.dispatchEvent(new CustomEvent("agent-selected", {detail: {key, focus: opts.focus}}));
+  if (!opts.initial && window.innerWidth < 900) document.getElementById("panel").scrollIntoView({behavior:"smooth"});
+}
+window.selectAgent = select;
+desks.forEach(d => d.addEventListener("click", () => select(d.dataset.agent)));
+let start = "scout"; try { start = localStorage.getItem("agent") || "scout"; } catch(e) {}
+const qAgent = new URLSearchParams(location.search).get("agent"); if (qAgent) start = qAgent;
+start = document.querySelector(`[data-agent="${start}"]`) ? start : "scout";
+select(start, {initial: true, focus: false});
+
+const qBtn = document.getElementById("quickRun"), qLog = document.getElementById("quickLog");
+const scoutDesk = document.querySelector('[data-agent="scout"]');
+function setBusy(on){
+  scoutDesk.classList.toggle("busy", on); scoutDesk.classList.toggle("work", !on);
+  scoutDesk.querySelector(".bubble").textContent = on ? "Lagi nyari loker… 🔥" : "Selesai! ✅";
+  document.dispatchEvent(new CustomEvent("agent-busy", {detail: {key: "scout", state: on ? "busy" : "done"}}));
+}
+async function poll(id){
+  const r = await (await fetch(`/api/runs/${id}`)).json();
+  qLog.hidden = false; qLog.textContent = r.log; qLog.scrollTop = qLog.scrollHeight;
+  if (r.status === "running") return setTimeout(() => poll(id), 2500);
+  setBusy(false); setTimeout(() => location.reload(), 1800);
+}
+qBtn.onclick = async () => {
+  qBtn.disabled = true; setBusy(true);
+  const res = await fetch("/api/scout/run", {method:"POST", headers:{"content-type":"application/json"}, body:"{}"});
+  const d = await res.json();
+  if (!res.ok){ qLog.hidden = false; qLog.textContent = d.detail || "Gagal memulai"; qBtn.disabled = false; setBusy(false); return; }
+  poll(d.run_id);
+};
+{% if scout_running %}poll({{ last_run.id }});{% endif %}
+
+// ---- Kayla ----
+const cJob = document.getElementById("coachJob"), cBtn = document.getElementById("coachBtn"), cBox = document.getElementById("coachBox");
+async function loadPrep(){
+  if (!cJob) return;
+  const r = await fetch(`/api/coach/${cJob.value}`);
+  if (r.ok){ const d = await r.json(); md(cBox, d.content); cBtn.textContent = "🔁 Siapkan ulang"; }
+  else { cBox.innerHTML = ""; cBtn.textContent = "🎤 Siapkan latihan interview"; }
+}
+if (cJob){
+  cJob.onchange = loadPrep; loadPrep();
+  cBtn.onclick = async () => {
+    cBtn.disabled = true; cBox.innerHTML = "<p class='muted'>Kayla sedang menyiapkan materi (±1 menit)…</p>";
+    document.dispatchEvent(new CustomEvent("agent-busy", {detail: {key: "coach", state: "busy"}}));
+    const r = await fetch(`/api/coach/${cJob.value}`, {method: "POST"}); const d = await r.json();
+    cBtn.disabled = false;
+    document.dispatchEvent(new CustomEvent("agent-busy", {detail: {key: "coach", state: r.ok ? "done" : "work"}}));
+    if (!r.ok){ cBox.textContent = d.error; return; }
+    md(cBox, d.content); cBtn.textContent = "🔁 Siapkan ulang";
+  };
+}
+</script>
+<script type="module" src="/static/office3d.js"></script>
 {% endblock %}

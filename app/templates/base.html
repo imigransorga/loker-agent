@@ -2,25 +2,46 @@
 <html lang="id">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}Kantor AI Loker{% endblock %}</title>
+<title>{% block title %}Family · Kantor AI Loker{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/theme.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
 <body>
-<header>
-  <a class="brand" href="/">🏢 Kantor AI Loker</a>
-  <nav>
-    <a href="/scout">🔎 Scout</a>
-    <a href="/agent/applier">📨 Applier</a>
-    <a href="/agent/builder">🧾 Builder</a>
-    <a href="/analyst">📊 Analyst</a>
-    <a href="/agent/manager">🧑‍💼 Manager</a>
+<!-- latar belakang beranimasi -->
+<div class="bg-fx" aria-hidden="true">
+  <span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span>
+  <div class="bg-grid"></div>
+  <div class="bg-stars">{% for i in range(28) %}<i style="--x:{{ (i * 37) % 100 }}%;--y:{{ (i * 61) % 100 }}%;--d:{{ 3 + (i % 5) }}s;--s:{{ 1 + (i % 3) }}px"></i>{% endfor %}</div>
+</div>
+
+<header class="topbar">
+  <a class="brand" href="/">
+    <span class="logo">🏠</span>
+    <span class="brand-text"><b>Family</b><small>Kantor AI Loker</small></span>
+  </a>
+  <nav class="nav">
+    {% set path = request.url.path %}
+    {% set qagent = request.query_params.get('agent', '') %}
+    {% for a in nav_agents %}
+      {% set href = '/scout' if a.key == 'scout' else ('/analyst' if a.key == 'analyst' else '/?agent=' ~ a.key) %}
+      {% set active = (path == href) or (path == '/' and qagent == a.key) or path.startswith('/agent/' ~ a.key) %}
+      <a href="{{ href }}" class="nav-link {{ 'active' if active }} {{ 'sleep' if not a.ready }}" style="--c:{{ nav_looks[a.key].shirt }}" title="{{ a.role }}">
+        <span class="ava">{{ a.name[0] }}</span>
+        <span class="nl"><b>{{ a.name }}</b><small>{{ a.title }}</small></span>
+      </a>
+    {% endfor %}
   </nav>
-  {% if claude %}<span class="pill ok">Claude aktif · {{ model }}</span>
-  {% else %}<span class="pill warn">Claude belum aktif (isi API key di .env)</span>{% endif %}
+  {% if claude %}<span class="status ok"><i></i>Claude aktif</span>
+  {% else %}<span class="status warn"><i></i>Claude belum aktif</span>{% endif %}
 </header>
+
 <main>{% block content %}{% endblock %}</main>
+
+<footer class="foot muted small">🏠 Family · Kantor AI Loker</footer>
 <script>
 function md(el, text){ el.innerHTML = DOMPurify.sanitize(marked.parse(text || "")); }
 document.querySelectorAll("[data-md]").forEach(el => md(el, el.textContent));

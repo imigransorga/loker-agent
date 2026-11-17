@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS news (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS interview_prep (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER,
+    content TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS company_research (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     job_id INTEGER,
@@ -84,6 +91,9 @@ def conn():
 def init_db():
     with conn() as c:
         c.executescript(SCHEMA)
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(jobs)")}
+        if "status_changed_at" not in cols:  # migrasi: kapan status lamaran terakhir diubah
+            c.execute("ALTER TABLE jobs ADD COLUMN status_changed_at TEXT")
 
 
 # ---------- runs ----------
@@ -160,6 +170,9 @@ def update_job_analysis(job_id: int, relevance: int, level: str, reason: str, sk
 
 def update_job_status(job_id: int, status: str, notes: str | None = None):
     with conn() as c:
+        old = c.execute("SELECT status FROM jobs WHERE id=?", (job_id,)).fetchone()
+        if old and old["status"] != status:
+            c.execute("UPDATE jobs SET status_changed_at=? WHERE id=?", (now(), job_id))
         if notes is None:
             c.execute("UPDATE jobs SET status=? WHERE id=?", (status, job_id))
         else:
@@ -246,3 +259,16 @@ def get_research(job_id: int):
 def query(sql: str, args: tuple = ()):
     with conn() as c:
         return [dict(r) for r in c.execute(sql, args).fetchall()]
+
+
+def save_prep(job_id: int, content: str):
+    with conn() as c:
+        c.execute("INSERT INTO interview_prep(job_id, content, created_at) VALUES (?,?,?)",
+                  (job_id, content, now()))
+
+
+def get_prep(job_id: int):
+    with conn() as c:
+        r = c.execute("SELECT * FROM interview_prep WHERE job_id=? ORDER BY id DESC LIMIT 1",
+                      (job_id,)).fetchone()
+        return dict(r) if r else None

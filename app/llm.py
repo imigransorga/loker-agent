@@ -43,6 +43,8 @@ def _create(**kw):
     except anthropic.RateLimitError as e:
         raise ClaudeError("Kena rate limit Claude API, coba lagi sebentar") from e
     except anthropic.APIStatusError as e:
+        if "credit balance" in str(e.message).lower():
+            raise ClaudeError("Saldo Claude API habis — isi kredit di platform.claude.com > Billing") from e
         raise ClaudeError(f"Claude API error {e.status_code}: {e.message}") from e
     except anthropic.APIConnectionError as e:
         raise ClaudeError("Gagal konek ke Claude API (cek internet)") from e
